@@ -1,0 +1,15 @@
+﻿@page
+@model ConfirmEmailModel
+@{
+    ViewData["Title"] = "Email confirmation 📨";
+}
+<p>
+    @Model.Message
+</p>
+@{
+    var url = HttpContext.Session.GetString("emailBody");
+}
+@if (!string.IsNullOrWhiteSpace(url))
+{
+    <a href="@url">Click Here!</a>
+}

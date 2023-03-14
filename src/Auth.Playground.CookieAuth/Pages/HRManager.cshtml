@@ -1,0 +1,34 @@
+﻿@page
+@model Auth.Playground.CookieAuth.Pages.HRManagerModel
+@{
+    ViewData["Title"] = "Human Resource  Manager Page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Human Resource Management</h1>
+    Welcome to the HR Management page.
+
+</div>
+<div class="container">
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <td>Date</td>
+                <td>Temp C</td>
+                <td>Temp F</td>
+                <td>Summary</td>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.WeatherForecastItems)
+            {
+                <tr>
+                    <td>@item.Date.ToLongDateString()</td>
+                    <td>@item.TemperatureC</td>
+                    <td>@item.TemperatureF</td>
+                    <td>@item.Summary</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
