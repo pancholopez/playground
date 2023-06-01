@@ -5,22 +5,24 @@
     ViewData["Title"] = "Home page";
 }
 
-<h1>Environment Variables</h1>
-
-<table>
-    <thead>
-    <tr>
-        <th>Variable</th>
-        <th>Value</th>
-    </tr>
-    </thead>
-    <tbody>
-    @foreach (var variable in Configuration.AsEnumerable())
-    {
+<div class="container">
+    <h1>Environment Variables</h1>
+    
+    <table>
+        <thead>
         <tr>
-            <td>@variable.Key</td>
-            <td>@variable.Value</td>
+            <th>Variable</th>
+            <th>Value</th>
         </tr>
-    }
-    </tbody>
-</table>
+        </thead>
+        <tbody>
+        @foreach (var variable in Configuration.AsEnumerable())
+        {
+            <tr>
+                <td>@variable.Key</td>
+                <td>@variable.Value</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+</div>

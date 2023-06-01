@@ -43,6 +43,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docker-support", "docker-su
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerSupport.Web", "docker-support\DockerSupport.Web\DockerSupport.Web.csproj", "{4CEB6981-844B-4FEB-A363-AE00B0173099}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DockerSupport.UnitTests", "docker-support\DockerSupport.UnitTests\DockerSupport.UnitTests.csproj", "{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -108,6 +110,10 @@ Global
 		{4CEB6981-844B-4FEB-A363-AE00B0173099}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4CEB6981-844B-4FEB-A363-AE00B0173099}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4CEB6981-844B-4FEB-A363-AE00B0173099}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{6828C44E-1011-4FF8-BCD0-A3CD2B60F329} = {62B715F1-EBDA-430F-B9A7-464BB84532AB}
@@ -127,5 +133,6 @@ Global
 		{C8214786-F34F-4C9B-907B-6111382B078F} = {31AAA650-02CD-4FD5-B2FA-25DA872F29FC}
 		{489B2514-D391-44C8-BDB8-8AD175521971} = {31AAA650-02CD-4FD5-B2FA-25DA872F29FC}
 		{4CEB6981-844B-4FEB-A363-AE00B0173099} = {0623D6CB-3BE1-477C-9132-CD2C79610FB8}
+		{CAE443DE-4ED7-4ED5-96FE-1791AE20FCF5} = {0623D6CB-3BE1-477C-9132-CD2C79610FB8}
 	EndGlobalSection
 EndGlobal
