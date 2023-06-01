@@ -1,0 +1,26 @@
+﻿@page
+@inject IConfiguration Configuration
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<h1>Environment Variables</h1>
+
+<table>
+    <thead>
+    <tr>
+        <th>Variable</th>
+        <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    @foreach (var variable in Configuration.AsEnumerable())
+    {
+        <tr>
+            <td>@variable.Key</td>
+            <td>@variable.Value</td>
+        </tr>
+    }
+    </tbody>
+</table>
