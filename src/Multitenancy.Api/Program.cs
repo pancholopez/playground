@@ -14,9 +14,9 @@ builder.Services
         options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 // register services
-builder.Services.AddTransient<ILoginService, LoginService>();
+builder.Services.AddTransient<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<IProductService, ProductService>();
-builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<ITenantContext, TenantContext>();
 
 // setup cookie authentication
 builder.Services
@@ -42,9 +42,9 @@ app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 
-app.MapPost("/login", async (LoginDto credentials, ILoginService loginService, HttpContext context) =>
+app.MapPost("/login", async (LoginDto credentials, IUserAccountService loginService, HttpContext context) =>
 {
-    var userAccount = await loginService.LoginAsync(credentials.Email, credentials.Password);
+    var userAccount = await loginService.AuthenticateAsync(credentials.Email, credentials.Password);
 
     if (userAccount is null) return Results.Unauthorized();
 

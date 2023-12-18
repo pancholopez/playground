@@ -5,17 +5,17 @@ namespace Multitenancy.Api.Models;
 
 public class ApplicationDbContext : DbContext
 {
-    private readonly ITenantService _tenantService;
+    private readonly ITenantContext _tenantContext;
     private static readonly Guid TenantIdLoremIpsum = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
 
     public DbSet<UserAccount> UserAccounts { get; set; }
     public DbSet<Product> Products { get; set; }
     public DbSet<Tenant> Tenants { get; set; }
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantService tenantService)
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantContext tenantContext)
         : base(options)
     {
-        _tenantService = tenantService;
+        _tenantContext = tenantContext;
     }
 
     // setup entity framework db schema and constrains
@@ -29,7 +29,7 @@ public class ApplicationDbContext : DbContext
 
         // setup global query filter
         modelBuilder.Entity<ITenantAware>()
-            .HasQueryFilter(x => x.TenantId == _tenantService.GetTenantId());
+            .HasQueryFilter(x => x.TenantId == _tenantContext.TenantId);
 
         // seed data
         modelBuilder.Entity<Tenant>().HasData(new Tenant
@@ -56,7 +56,7 @@ public class ApplicationDbContext : DbContext
             {
                 case EntityState.Added:
                 case EntityState.Modified:
-                    entry.Entity.TenantId = _tenantService.GetTenantId();
+                    entry.Entity.TenantId = _tenantContext.TenantId;
                     break;
             }
         }
