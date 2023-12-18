@@ -19,7 +19,8 @@ builder.Services.AddTransient<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 
-// setup cookie authentication
+// add authorization and setup cookie authentication
+builder.Services.AddAuthorization();
 builder.Services
     .AddAuthentication(options =>
     {
@@ -51,12 +52,13 @@ app.MapPost("/login", async (LoginDto credentials, IUserAccountService loginServ
 
     await context.SignInAsync(
         scheme: CookieAuthenticationDefaults.AuthenticationScheme,
-        principal: new ClaimsPrincipal(new ClaimsIdentity(new[]
-        {
-            new Claim(ClaimTypes.Name, userAccount.Id.ToString()),
-            new Claim(ClaimTypes.Email, userAccount.Email),
-            new Claim("Tenant", userAccount.TenantId.ToString())
-        })),
+        principal: new ClaimsPrincipal(
+            identity: new ClaimsIdentity(new[]
+            {
+                new Claim(ClaimTypes.Name, userAccount.Id.ToString()),
+                new Claim(ClaimTypes.Email, userAccount.Email),
+                new Claim("Tenant", userAccount.TenantId.ToString())
+            }, authenticationType: CookieAuthenticationDefaults.AuthenticationScheme)),
         properties: new AuthenticationProperties());
 
     return Results.Ok(userAccount);
