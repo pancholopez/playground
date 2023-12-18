@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Multitenancy.Api.Middleware;
 using Multitenancy.Api.Models;
 using Multitenancy.Api.Services;
 
@@ -9,8 +10,11 @@ builder.Services
         options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ITenantService, TenantService>();
 
 var app = builder.Build();
+
+app.UseMiddleware<TenantMiddleware>();
 
 app.MapGet("/", () => "Hello World!");
 
