@@ -37,10 +37,9 @@ builder.Services
 
 var app = builder.Build();
 
-app.UseMiddleware<TenantMiddleware>();
-
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TenantMiddleware>();
 
 app.MapGet("/", () => "Hello World!");
 
@@ -70,15 +69,16 @@ app.MapGet("/identity", (ClaimsPrincipal user) =>
     var tenantId = Guid.Parse(user.Claims.Single(x => x.Type == "Tenant").Value);
 
     return $"Hello {email} with tenant {tenantId}";
-});
+}).RequireAuthorization();
 
 app.MapGet("/products", (IProductService productService)
-    => productService.GetAllProducts());
+    => productService.GetAllProducts()).RequireAuthorization();
 
 app.MapPost("/products", (ProductDto product, IProductService productService)
-    => productService.CreateProduct(product));
+    => productService.CreateProduct(product)).RequireAuthorization();
 
 app.MapDelete("/products/{productId:int}", (int productId, IProductService productService)
-    => productService.DeleteProduct(productId) ? Results.NoContent() : Results.NotFound());
+        => productService.DeleteProduct(productId) ? Results.NoContent() : Results.NotFound())
+    .RequireAuthorization();
 
 app.Run();
