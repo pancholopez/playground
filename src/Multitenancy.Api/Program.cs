@@ -14,6 +14,7 @@ builder.Services
         options.UseSqlite(builder.Configuration.GetConnectionString("Default")));
 
 // register services
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddTransient<IUserAccountService, UserAccountService>();
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<ITenantContext, TenantContext>();

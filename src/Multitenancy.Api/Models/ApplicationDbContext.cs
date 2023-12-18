@@ -27,9 +27,9 @@ public class ApplicationDbContext : DbContext
             .Property(x => x.Id)
             .ValueGeneratedOnAdd();
 
-        // setup global query filter
-        modelBuilder.Entity<ITenantAware>()
-            .HasQueryFilter(x => x.TenantId == _tenantContext.TenantId);
+        // setup query filter
+        modelBuilder.Entity<Product>().HasQueryFilter(x => x.TenantId == _tenantContext.TenantId);
+        modelBuilder.Entity<UserAccount>().HasQueryFilter(x => x.TenantId == _tenantContext.TenantId);
 
         // seed data
         modelBuilder.Entity<Tenant>().HasData(new Tenant
