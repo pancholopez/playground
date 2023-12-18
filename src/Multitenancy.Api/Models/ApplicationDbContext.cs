@@ -5,15 +5,17 @@ namespace Multitenancy.Api.Models;
 
 public class ApplicationDbContext : DbContext
 {
-    private readonly Guid _tenantId;
-    public DbSet<Product> Products { get; set; }
+    private readonly ITenantService _tenantService;
+    private static readonly Guid TenantIdLoremIpsum = Guid.Parse("550e8400-e29b-41d4-a716-446655440000");
 
+    public DbSet<UserAccount> UserAccounts { get; set; }
+    public DbSet<Product> Products { get; set; }
     public DbSet<Tenant> Tenants { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantService tenantService)
         : base(options)
     {
-        _tenantId = tenantService.GetTenantId();
+        _tenantService = tenantService;
     }
 
     // setup entity framework db schema and constrains
@@ -24,9 +26,25 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Tenant>()
             .Property(x => x.Id)
             .ValueGeneratedOnAdd();
-        
+
         // setup global query filter
-        modelBuilder.Entity<ITenantAware>().HasQueryFilter(x => x.TenantId == _tenantId);
+        modelBuilder.Entity<ITenantAware>()
+            .HasQueryFilter(x => x.TenantId == _tenantService.GetTenantId());
+
+        // seed data
+        modelBuilder.Entity<Tenant>().HasData(new Tenant
+        {
+            Id = TenantIdLoremIpsum,
+            Name = "LoremIpsum company"
+        });
+        
+        modelBuilder.Entity<UserAccount>().HasData(new UserAccount
+            {
+                Id = 1,
+                Email = "user@example.com",
+                Password = "password",
+                TenantId = TenantIdLoremIpsum
+            });
     }
 
     // before saving changes, we make sure that entities that are aware of Tenant contain the current tenant Id
@@ -38,7 +56,7 @@ public class ApplicationDbContext : DbContext
             {
                 case EntityState.Added:
                 case EntityState.Modified:
-                    entry.Entity.TenantId = _tenantId;
+                    entry.Entity.TenantId = _tenantService.GetTenantId();
                     break;
             }
         }
