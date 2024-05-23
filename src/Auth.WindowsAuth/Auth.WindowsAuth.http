@@ -1,0 +1,6 @@
+@Auth.WindowsAuth_HostAddress = http://localhost:5159
+
+GET {{Auth.WindowsAuth_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
