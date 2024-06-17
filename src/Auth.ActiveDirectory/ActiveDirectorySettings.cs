@@ -1,6 +1,6 @@
 namespace Auth.ActiveDirectory;
 
-public record ActiveDirectorySettings(string Address, string User, string Password);
+public record ActiveDirectorySettings(string ServerName, string UserName, string Password);
 
 public record OrganizationalUnit(
     string Name, 

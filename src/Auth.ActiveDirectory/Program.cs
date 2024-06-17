@@ -4,7 +4,10 @@ using System.DirectoryServices.ActiveDirectory;
 using System.Text.Json;
 using Auth.ActiveDirectory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
+// configuration setup
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -12,7 +15,27 @@ var configuration = new ConfigurationBuilder()
     .Build();
 
 var adSettings = configuration.GetSection("ActiveDirectory").Get<ActiveDirectorySettings>()!;
+
+// setup DI Container and build service provider
+var serviceProvider = new ServiceCollection()
+    .AddLogging(options =>
+    {
+        options.AddConfiguration(configuration.GetSection("Logging"));
+        options.AddConsole();
+    })
+    .AddSingleton(adSettings)
+    .AddTransient<IActiveDirectoryService, ActiveDirectoryService>()
+    .BuildServiceProvider();
+
 var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
+
+var adService = serviceProvider.GetRequiredService<IActiveDirectoryService>();
+
+var connectResult = adService.Connect();
+
+Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
+
+adService.Disconnect();
 
 #pragma warning disable CA1416
 
@@ -22,16 +45,16 @@ var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
 // var ouCollection = GetOrganizationalUnits(adSettings);
 // Console.WriteLine(JsonSerializer.Serialize(ouCollection, serializerOptions));
 
-var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
-var searchResults = SearchUser("gonzalez", adPath, adSettings);
-Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
+// var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
+// var searchResults = SearchUser("gonzalez", adPath, adSettings);
+// Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
 
 void Connect(ActiveDirectorySettings settings)
 {
     using (var context = new PrincipalContext(
                contextType: ContextType.Domain,
-               name: settings!.Address,
-               userName: settings.User,
+               name: settings!.ServerName,
+               userName: settings.UserName,
                password: settings.Password))
     {
         if (context.ConnectedServer is not null)
@@ -53,8 +76,8 @@ void GetDomainDetails(ActiveDirectorySettings activeDirectorySettings)
     {
         var context = new DirectoryContext(
             DirectoryContextType.DirectoryServer,
-            activeDirectorySettings.Address,
-            activeDirectorySettings.User,
+            activeDirectorySettings.ServerName,
+            activeDirectorySettings.UserName,
             activeDirectorySettings.Password
         );
 
@@ -76,8 +99,8 @@ static List<OrganizationalUnit> GetOrganizationalUnits(ActiveDirectorySettings s
     var organizationalUnits = new List<OrganizationalUnit>();
     try
     {
-        string ldapPath = $"LDAP://{settings.Address}";
-        DirectoryEntry entry = new DirectoryEntry(ldapPath, settings.User, settings.Password);
+        string ldapPath = $"LDAP://{settings.ServerName}";
+        DirectoryEntry entry = new DirectoryEntry(ldapPath, settings.UserName, settings.Password);
 
         DirectorySearcher searcher = new DirectorySearcher(entry)
         {
@@ -119,13 +142,13 @@ List<string> SearchUser(string name, string adServicePath, ActiveDirectorySettin
     var userList = new List<string>();
     try
     {
-        DirectoryEntry entry = new DirectoryEntry(adServicePath, settings.User, settings.Password);
+        DirectoryEntry entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
 
         DirectorySearcher searcher = new DirectorySearcher(entry)
         {
             Filter = $"(&(objectClass=user)(mail=*{name}*))"
         };
-        
+
         // Optionally add more properties to load
         // searcher.PropertiesToLoad.Add("mail");
         // searcher.PropertiesToLoad.Add("sAMAccountName");
@@ -208,5 +231,34 @@ static void DeleteUserAccount()
         {
             Console.WriteLine("User not found.");
         }
+    }
+}
+
+static void ResetUserPassword()
+{
+    try
+    {
+        // The path to the user you want to reset the password for.
+        string userDn = "LDAP://CN=UserName,OU=Users,DC=YourDomain,DC=com";
+        string newPassword = "newPassword123";
+
+        // Connect to the user's DirectoryEntry.
+        using (DirectoryEntry user = new DirectoryEntry(userDn))
+        {
+            // Reset the password.
+            user.Invoke("SetPassword", new object[] { newPassword });
+
+            // If you want to force the user to change password at next logon, uncomment the next line.
+            // user.Properties["pwdLastSet"].Value = 0;
+
+            // Commit the changes.
+            user.CommitChanges();
+
+            Console.WriteLine("Password reset successfully.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
     }
 }
