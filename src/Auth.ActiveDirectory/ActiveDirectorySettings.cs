@@ -7,5 +7,5 @@ public record OrganizationalUnit(
     string ActiveDirectoryServicePath, 
     string DistinguishName)
 {
-    public List<OrganizationalUnit> OrganizationalUnits { get; init; } = [];
+    public ICollection<OrganizationalUnit> OrganizationalUnits { get; init; } = [];
 }

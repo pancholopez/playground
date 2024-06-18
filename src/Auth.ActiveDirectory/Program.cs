@@ -35,6 +35,11 @@ var connectResult = adService.Connect();
 
 Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
 
+var detailsResult = adService.GetServerDetails();
+
+Console.WriteLine(JsonSerializer.Serialize(detailsResult.Value, serializerOptions));
+
+
 adService.Disconnect();
 
 #pragma warning disable CA1416
@@ -48,94 +53,6 @@ adService.Disconnect();
 // var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
 // var searchResults = SearchUser("gonzalez", adPath, adSettings);
 // Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
-
-void Connect(ActiveDirectorySettings settings)
-{
-    using (var context = new PrincipalContext(
-               contextType: ContextType.Domain,
-               name: settings!.ServerName,
-               userName: settings.UserName,
-               password: settings.Password))
-    {
-        if (context.ConnectedServer is not null)
-        {
-            Console.WriteLine($"Connected to active directory: {JsonSerializer
-                .Serialize(context, serializerOptions)}");
-            // here list all Domain Controllers
-        }
-        else
-        {
-            Console.WriteLine("Failed to connect to Active Directory.");
-        }
-    }
-}
-
-void GetDomainDetails(ActiveDirectorySettings activeDirectorySettings)
-{
-    try
-    {
-        var context = new DirectoryContext(
-            DirectoryContextType.DirectoryServer,
-            activeDirectorySettings.ServerName,
-            activeDirectorySettings.UserName,
-            activeDirectorySettings.Password
-        );
-
-        var domain = Domain.GetDomain(context);
-        Console.WriteLine("Domain Forest Name: " + domain.Forest.Name);
-        foreach (DomainController dc in domain.DomainControllers)
-        {
-            Console.WriteLine("Domain Controller: " + dc.Name);
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("An error occurred: " + ex.Message);
-    }
-}
-
-static List<OrganizationalUnit> GetOrganizationalUnits(ActiveDirectorySettings settings)
-{
-    var organizationalUnits = new List<OrganizationalUnit>();
-    try
-    {
-        string ldapPath = $"LDAP://{settings.ServerName}";
-        DirectoryEntry entry = new DirectoryEntry(ldapPath, settings.UserName, settings.Password);
-
-        DirectorySearcher searcher = new DirectorySearcher(entry)
-        {
-            Filter = "(objectClass=organizationalUnit)"
-        };
-
-        searcher.PropertiesToLoad.Add("ou");
-        searcher.PropertiesToLoad.Add("distinguishedName");
-
-        SearchResultCollection results = searcher.FindAll();
-
-        foreach (SearchResult result in results)
-        {
-            string name = "N/A";
-            string path = "N/A";
-            if (result.Properties.Contains("ou"))
-            {
-                name = result.Properties["ou"][0].ToString()!;
-                path = result.Properties["adspath"][0].ToString()!;
-            }
-
-            var dname = result.Properties.Contains("distinguishedName")
-                ? result.Properties["distinguishedName"][0].ToString()!
-                : "N/A";
-
-            organizationalUnits.Add(new OrganizationalUnit(name, path, dname));
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("An error occurred while searching for organizational units: " + ex.Message);
-    }
-
-    return organizationalUnits;
-}
 
 List<string> SearchUser(string name, string adServicePath, ActiveDirectorySettings settings)
 {
