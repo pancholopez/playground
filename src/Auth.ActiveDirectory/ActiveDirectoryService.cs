@@ -133,6 +133,8 @@ public class ConnectedState : ActiveDirectoryState
 
     public override Result<DomainDetails> GetDomainDetails(ActiveDirectorySettings settings)
     {
+        var cst = new CancellationTokenSource();
+        
         try
         {
             var context = new DirectoryContext(
@@ -142,7 +144,16 @@ public class ConnectedState : ActiveDirectoryState
                 password: settings.Password
             );
 
-            var domain = Domain.GetDomain(context);
+            var domainTask = Task.Run(() => Domain.GetDomain(context), cst.Token);
+
+            if (!domainTask.Wait(TimeSpan.FromMilliseconds(settings.TimeOutInMilliSeconds), cst.Token))
+            {
+                cst.Cancel();
+                return Result.Failure<DomainDetails>($"{nameof(Domain.GetDomain)} operation timeout.");
+            }
+
+            var domain = domainTask.Result;
+            
             var details = new DomainDetails(
                 ForestName: domain.Forest.Name,
                 DomainControllers: domain.DomainControllers.Cast<DomainController>()
@@ -234,8 +245,14 @@ public class ActiveDirectoryService : IActiveDirectoryService, IStateContext<Act
 
     public Result<ActiveDirectoryDetails> GetServerDetails()
     {
+        var directoryDetails = ActiveDirectoryDetails.Null;
+
         var detailsResult = _state.GetDomainDetails(_settings);
-        if (detailsResult.IsFailure)
+        if (detailsResult.IsSuccess)
+        {
+            directoryDetails = new ActiveDirectoryDetails(detailsResult.Value, []);
+        }
+        else
         {
             _logger.LogError("{method} failed. {reason}",
                 nameof(_state.GetDomainDetails), detailsResult.ErrorMessage);
@@ -249,9 +266,7 @@ public class ActiveDirectoryService : IActiveDirectoryService, IStateContext<Act
             return Result.Failure<ActiveDirectoryDetails>($"{nameof(GetServerDetails)} failed.");
         }
 
-        return Result.Ok(new ActiveDirectoryDetails(
-            DomainDetails: detailsResult.Value, 
-            OrganizationalUnits: ouResult.Value.ToList()));
+        return Result.Ok(directoryDetails with { OrganizationalUnits = ouResult.Value.ToList() });
     }
 
     // SearchUser

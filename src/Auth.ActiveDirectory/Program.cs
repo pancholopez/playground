@@ -36,9 +36,7 @@ var connectResult = adService.Connect();
 Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
 
 var detailsResult = adService.GetServerDetails();
-
 Console.WriteLine(JsonSerializer.Serialize(detailsResult.Value, serializerOptions));
-
 
 adService.Disconnect();
 
@@ -53,6 +51,41 @@ adService.Disconnect();
 // var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
 // var searchResults = SearchUser("gonzalez", adPath, adSettings);
 // Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
+
+void GetDomainDetails(ActiveDirectorySettings activeDirectorySettings)
+{
+    CancellationTokenSource cts = new CancellationTokenSource();
+    Task task = Task.Run(() =>
+    {
+        try
+        {
+            var context = new DirectoryContext(
+                DirectoryContextType.DirectoryServer,
+                activeDirectorySettings.ServerName,
+                activeDirectorySettings.UserName,
+                activeDirectorySettings.Password
+            );
+
+            Console.WriteLine("Fetching Domain details..");
+            var domain = Domain.GetDomain(context);
+            Console.WriteLine("Domain Forest Name: " + domain.Forest.Name);
+            foreach (DomainController dc in domain.DomainControllers)
+            {
+                Console.WriteLine("Domain Controller: " + dc.Name);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("An error occurred: " + ex.Message);
+        }
+    }, cts.Token);
+
+    if (!task.Wait(TimeSpan.FromSeconds(5)))
+    {
+        cts.Cancel();
+        Console.WriteLine("Operation cancelled due to timeout.");
+    }
+}
 
 List<string> SearchUser(string name, string adServicePath, ActiveDirectorySettings settings)
 {
