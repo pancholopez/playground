@@ -134,7 +134,7 @@ public class ConnectedState : ActiveDirectoryState
     public override Result<DomainDetails> GetDomainDetails(ActiveDirectorySettings settings)
     {
         var cst = new CancellationTokenSource();
-        
+
         try
         {
             var context = new DirectoryContext(
@@ -153,7 +153,7 @@ public class ConnectedState : ActiveDirectoryState
             }
 
             var domain = domainTask.Result;
-            
+
             var details = new DomainDetails(
                 ForestName: domain.Forest.Name,
                 DomainControllers: domain.DomainControllers.Cast<DomainController>()
@@ -206,8 +206,23 @@ public class ConnectedState : ActiveDirectoryState
 internal static class SearchResultExtensions
 {
     public static string GetValueOrDefault(this ResultPropertyCollection properties,
-        string propertyName, string defaultValue = "N/A") =>
-        properties.Contains(propertyName) ? properties[propertyName][0].ToString()! : defaultValue;
+        string propertyName, string defaultValue = "N/A")
+    {
+        if (!properties.Contains(propertyName)) return defaultValue;
+
+        var propertyValue = properties[propertyName][0];
+        if (propertyValue is byte[] bytes)  // if the value is a GUID
+        {
+            return new Guid(bytes).ToString();
+        }
+
+        return propertyValue.ToString()!;
+    }
+
+    public static ICollection<string> GetCollectionOrDefault(this ResultPropertyCollection properties,
+        string propertyName) => properties.Contains(propertyName)
+        ? properties[propertyName].OfType<string>().ToList()
+        : [];
 }
 
 public interface IStateContext<in T>
@@ -284,10 +299,24 @@ public class ActiveDirectoryService : IActiveDirectoryService, IStateContext<Act
 
 public record ActiveDirectoryDetails(DomainDetails DomainDetails, ICollection<OrganizationalUnit> OrganizationalUnits)
 {
-    public static readonly ActiveDirectoryDetails Null = new ActiveDirectoryDetails(DomainDetails.Null, []);
+    public static readonly ActiveDirectoryDetails Null = new(DomainDetails.Null, []);
 }
 
 public record DomainDetails(string ForestName, ICollection<string> DomainControllers)
 {
-    public static readonly DomainDetails Null = new DomainDetails("N/A", []);
+    public static readonly DomainDetails Null = new("N/A", []);
 }
+
+public record UserSearchResult(
+    string Id,
+    string Email,
+    string CommonName,
+    string UserPrincipalName,
+    string SecurityAccountManagerName,
+    string DistinguishedName,
+    ICollection<string> MemberOf,
+    string? Description = null,
+    string? DisplayName = null,
+    string? AccountCreatedTimeStamp = null,
+    string? AccountExpirationFileTime = null,
+    string? LastUpdateTimeStamp = null);

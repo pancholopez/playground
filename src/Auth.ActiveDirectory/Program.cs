@@ -1,6 +1,8 @@
 ﻿using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.DirectoryServices.ActiveDirectory;
+using System.Runtime.CompilerServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Auth.ActiveDirectory;
 using Microsoft.Extensions.Configuration;
@@ -36,7 +38,15 @@ var connectResult = adService.Connect();
 Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
 
 var detailsResult = adService.GetServerDetails();
-Console.WriteLine(JsonSerializer.Serialize(detailsResult.Value, serializerOptions));
+
+var testOU =
+    detailsResult.Value.OrganizationalUnits.Single(x =>
+        x.Name.Contains("TEST_QFR", StringComparison.OrdinalIgnoreCase));
+
+Console.WriteLine(JsonSerializer.Serialize(testOU, serializerOptions));
+
+var searchResults = SearchUser("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
+Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
 
 adService.Disconnect();
 
@@ -52,81 +62,42 @@ adService.Disconnect();
 // var searchResults = SearchUser("gonzalez", adPath, adSettings);
 // Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
 
-void GetDomainDetails(ActiveDirectorySettings activeDirectorySettings)
+List<UserSearchResult> SearchUser(string name, string adServicePath, ActiveDirectorySettings settings)
 {
-    CancellationTokenSource cts = new CancellationTokenSource();
-    Task task = Task.Run(() =>
-    {
-        try
-        {
-            var context = new DirectoryContext(
-                DirectoryContextType.DirectoryServer,
-                activeDirectorySettings.ServerName,
-                activeDirectorySettings.UserName,
-                activeDirectorySettings.Password
-            );
-
-            Console.WriteLine("Fetching Domain details..");
-            var domain = Domain.GetDomain(context);
-            Console.WriteLine("Domain Forest Name: " + domain.Forest.Name);
-            foreach (DomainController dc in domain.DomainControllers)
-            {
-                Console.WriteLine("Domain Controller: " + dc.Name);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("An error occurred: " + ex.Message);
-        }
-    }, cts.Token);
-
-    if (!task.Wait(TimeSpan.FromSeconds(5)))
-    {
-        cts.Cancel();
-        Console.WriteLine("Operation cancelled due to timeout.");
-    }
-}
-
-List<string> SearchUser(string name, string adServicePath, ActiveDirectorySettings settings)
-{
-    var userList = new List<string>();
     try
     {
-        DirectoryEntry entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
+        var entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
 
-        DirectorySearcher searcher = new DirectorySearcher(entry)
+        var searcher = new DirectorySearcher(entry)
         {
             Filter = $"(&(objectClass=user)(mail=*{name}*))"
         };
 
-        // Optionally add more properties to load
-        // searcher.PropertiesToLoad.Add("mail");
-        // searcher.PropertiesToLoad.Add("sAMAccountName");
-        // searcher.PropertiesToLoad.Add("userPrincipalName");
-        // searcher.PropertiesToLoad.Add("cn");
-        // searcher.PropertiesToLoad.Add("department");
-        // searcher.PropertiesToLoad.Add("memberOf");
+        var results = searcher.FindAll();
 
-        SearchResultCollection results = searcher.FindAll();
+        var accountCollection = results.Cast<SearchResult>().Select(result =>
+            new UserSearchResult(
+                Id: result.Properties.GetValueOrDefault("objectGUID"),
+                Email: result.Properties.GetValueOrDefault("mail"),
+                CommonName: result.Properties.GetValueOrDefault("cn"),
+                UserPrincipalName: result.Properties.GetValueOrDefault("userPrincipalName"),
+                SecurityAccountManagerName: result.Properties.GetValueOrDefault("sAMAccountName"),
+                DistinguishedName: result.Properties.GetValueOrDefault("distinguishedName"),
+                MemberOf: result.Properties.GetCollectionOrDefault("memberOf"),
+                Description: result.Properties.GetValueOrDefault("description"),
+                DisplayName: result.Properties.GetValueOrDefault("displayName"),
+                AccountCreatedTimeStamp: result.Properties.GetValueOrDefault("whenCreated"),
+                AccountExpirationFileTime: result.Properties.GetValueOrDefault("accountExpires"),
+                LastUpdateTimeStamp: result.Properties.GetValueOrDefault("whenChanged")
+            )).ToList();
 
-        foreach (SearchResult result in results)
-        {
-            if (result.Properties.Contains("mail"))
-            {
-                string email = result.Properties["mail"][0].ToString()!;
-                string accountName = (result.Properties.Contains("sAMAccountName")
-                    ? result.Properties["sAMAccountName"][0].ToString()
-                    : "N/A")!;
-                userList.Add($"{accountName} ({email})");
-            }
-        }
+        return accountCollection;
     }
     catch (Exception ex)
     {
         Console.WriteLine("An error occurred while searching for users: " + ex.Message);
+        return [];
     }
-
-    return userList;
 }
 
 static void CreateUserAccount()
