@@ -1,8 +1,5 @@
 ﻿using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
-using System.DirectoryServices.ActiveDirectory;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Auth.ActiveDirectory;
 using Microsoft.Extensions.Configuration;
@@ -33,22 +30,19 @@ var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
 
 var adService = serviceProvider.GetRequiredService<IActiveDirectoryService>();
 
-var connectResult = adService.Connect();
+var connectResult = adService.ValidateConnection(adSettings);
 
 Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
 
-var detailsResult = adService.GetServerDetails();
+var detailsResult = adService.GetOrganizationalUnits(adSettings);
 
-var testOU =
-    detailsResult.Value.OrganizationalUnits.Single(x =>
-        x.Name.Contains("TEST_QFR", StringComparison.OrdinalIgnoreCase));
+var testOU = detailsResult.Value.Single(x => x.Name.Contains("TEST_QFR", StringComparison.OrdinalIgnoreCase));
 
 Console.WriteLine(JsonSerializer.Serialize(testOU, serializerOptions));
 
 var searchResults = SearchUser("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
 Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
 
-adService.Disconnect();
 
 #pragma warning disable CA1416
 
