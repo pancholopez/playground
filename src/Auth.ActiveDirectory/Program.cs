@@ -40,8 +40,8 @@ var testOU = detailsResult.Value.Single(x => x.Name.Contains("TEST_QFR", StringC
 
 Console.WriteLine(JsonSerializer.Serialize(testOU, serializerOptions));
 
-var searchResults = SearchUser("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
-Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
+var searchResult = adService.SearchUserAccount("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
+Console.WriteLine(JsonSerializer.Serialize(searchResult, serializerOptions));
 
 
 #pragma warning disable CA1416
@@ -55,44 +55,6 @@ Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
 // var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
 // var searchResults = SearchUser("gonzalez", adPath, adSettings);
 // Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
-
-List<UserSearchResult> SearchUser(string name, string adServicePath, ActiveDirectorySettings settings)
-{
-    try
-    {
-        var entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
-
-        var searcher = new DirectorySearcher(entry)
-        {
-            Filter = $"(&(objectClass=user)(mail=*{name}*))"
-        };
-
-        var results = searcher.FindAll();
-
-        var accountCollection = results.Cast<SearchResult>().Select(result =>
-            new UserSearchResult(
-                Id: result.Properties.GetValueOrDefault("objectGUID"),
-                Email: result.Properties.GetValueOrDefault("mail"),
-                CommonName: result.Properties.GetValueOrDefault("cn"),
-                UserPrincipalName: result.Properties.GetValueOrDefault("userPrincipalName"),
-                SecurityAccountManagerName: result.Properties.GetValueOrDefault("sAMAccountName"),
-                DistinguishedName: result.Properties.GetValueOrDefault("distinguishedName"),
-                MemberOf: result.Properties.GetCollectionOrDefault("memberOf"),
-                Description: result.Properties.GetValueOrDefault("description"),
-                DisplayName: result.Properties.GetValueOrDefault("displayName"),
-                AccountCreatedTimeStamp: result.Properties.GetValueOrDefault("whenCreated"),
-                AccountExpirationFileTime: result.Properties.GetValueOrDefault("accountExpires"),
-                LastUpdateTimeStamp: result.Properties.GetValueOrDefault("whenChanged")
-            )).ToList();
-
-        return accountCollection;
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("An error occurred while searching for users: " + ex.Message);
-        return [];
-    }
-}
 
 static void CreateUserAccount()
 {

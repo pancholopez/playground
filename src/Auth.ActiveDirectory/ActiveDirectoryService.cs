@@ -10,6 +10,9 @@ public interface IActiveDirectoryService
     Result ValidateConnection(ActiveDirectorySettings settings);
     Result<DomainDetails> GetDomainDetails(ActiveDirectorySettings settings);
     Result<IEnumerable<OrganizationalUnit>> GetOrganizationalUnits(ActiveDirectorySettings settings);
+
+    Result<IEnumerable<UserSearchResult>> SearchUserAccount(string name, string adServicePath,
+        ActiveDirectorySettings settings);
 }
 
 [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
@@ -89,19 +92,39 @@ public class ActiveDirectoryService : IActiveDirectoryService
 
             var results = searcher.FindAll();
 
-            var organizationalUnits = results.Cast<SearchResult>()
-                .Select(result => new OrganizationalUnit(
-                    Name: result.Properties.GetValueOrDefault("ou"),
-                    ActiveDirectoryServicePath: result.Properties.GetValueOrDefault("adspath"),
-                    DistinguishName: result.Properties.GetValueOrDefault("distinguishedName"))
-                ).ToList();
+            var organizationalUnits = results.Cast<SearchResult>().Select(OrganizationalUnit.Map);
 
-            return Result.Ok<IEnumerable<OrganizationalUnit>>(organizationalUnits);
+            return Result.Ok(organizationalUnits);
         }
         catch (Exception exception)
         {
             return Result.Failure<IEnumerable<OrganizationalUnit>>(
                 $"{nameof(GetOrganizationalUnits)} failed. {exception.Message}");
+        }
+    }
+
+    public Result<IEnumerable<UserSearchResult>> SearchUserAccount(string name, string adServicePath,
+        ActiveDirectorySettings settings)
+    {
+        try
+        {
+            var entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
+
+            var searcher = new DirectorySearcher(entry)
+            {
+                Filter = $"(&(objectClass=user)(mail=*{name}*))"
+            };
+
+            var results = searcher.FindAll();
+
+            var accountCollection = results.Cast<SearchResult>().Select(UserSearchResult.Map);
+
+            return Result.Ok(accountCollection);
+        }
+        catch (Exception exception)
+        {
+            return Result
+                .Failure<IEnumerable<UserSearchResult>>($"{nameof(DirectorySearcher)} failed. {exception.Message}");
         }
     }
 }
@@ -129,11 +152,6 @@ internal static class SearchResultExtensions
         : [];
 }
 
-public record ActiveDirectoryDetails(DomainDetails DomainDetails, ICollection<OrganizationalUnit> OrganizationalUnits)
-{
-    public static readonly ActiveDirectoryDetails Null = new(DomainDetails.Null, []);
-}
-
 public record DomainDetails(string ForestName, ICollection<string> DomainControllers)
 {
     public static readonly DomainDetails Null = new("N/A", []);
@@ -151,4 +169,21 @@ public record UserSearchResult(
     string? DisplayName = null,
     string? AccountCreatedTimeStamp = null,
     string? AccountExpirationFileTime = null,
-    string? LastUpdateTimeStamp = null);
+    string? LastUpdateTimeStamp = null)
+{
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    public static UserSearchResult Map(SearchResult result) => new(
+        Id: result.Properties.GetValueOrDefault("objectGUID"),
+        Email: result.Properties.GetValueOrDefault("mail"),
+        CommonName: result.Properties.GetValueOrDefault("cn"),
+        UserPrincipalName: result.Properties.GetValueOrDefault("userPrincipalName"),
+        SecurityAccountManagerName: result.Properties.GetValueOrDefault("sAMAccountName"),
+        DistinguishedName: result.Properties.GetValueOrDefault("distinguishedName"),
+        MemberOf: result.Properties.GetCollectionOrDefault("memberOf"),
+        Description: result.Properties.GetValueOrDefault("description"),
+        DisplayName: result.Properties.GetValueOrDefault("displayName"),
+        AccountCreatedTimeStamp: result.Properties.GetValueOrDefault("whenCreated"),
+        AccountExpirationFileTime: result.Properties.GetValueOrDefault("accountExpires"),
+        LastUpdateTimeStamp: result.Properties.GetValueOrDefault("whenChanged")
+    );
+}
