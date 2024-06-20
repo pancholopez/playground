@@ -1,5 +1,4 @@
 ﻿using System.DirectoryServices;
-using System.DirectoryServices.AccountManagement;
 using System.Text.Json;
 using Auth.ActiveDirectory;
 using Microsoft.Extensions.Configuration;
@@ -35,107 +34,37 @@ var connectResult = adService.ValidateConnection(adSettings);
 Console.WriteLine($"Connection {(connectResult.IsSuccess ? "SUCCEEDED!" : "FAILED")}");
 
 var detailsResult = adService.GetOrganizationalUnits(adSettings);
-
 var testOU = detailsResult.Value.Single(x => x.Name.Contains("TEST_QFR", StringComparison.OrdinalIgnoreCase));
-
 Console.WriteLine(JsonSerializer.Serialize(testOU, serializerOptions));
 
-var searchResult = adService.SearchUserAccount("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
+// var searchResult = adService.SearchUserAccount("gonzalez", testOU.ActiveDirectoryServicePath, adSettings);
+// Console.WriteLine(JsonSerializer.Serialize(searchResult, serializerOptions));
+
+var newAccount = new NewUserAccount(
+    UserName: "JDoe",
+    Email: "jdoe@example.com",
+    FirstName: "John",
+    LastName: "Doe");
+
+var createResult = adService.CreateAccount(testOU.ActiveDirectoryServicePath, newAccount, adSettings);
+Console.WriteLine(JsonSerializer.Serialize(createResult, serializerOptions));
+var account = createResult.Value;
+
+// var passwordResult = adService.ResetPassword(account, "aP4@zB1", adSettings);
+// Console.WriteLine(
+//     $"Password reset for {account.SecurityAccountManagerName} {(passwordResult.IsSuccess ? 
+//         "Succeeded!" : $"FAILED. {passwordResult.ErrorMessage}")}");
+
+var groupResult = adService.AddUserToGroup(account.SecurityAccountManagerName, "TestGroup", adSettings);
+if (groupResult.IsFailure)
+{
+    Console.WriteLine($"Failed to add user to group. {groupResult.ErrorMessage}");
+}
+
+var searchResult = adService.SearchUserAccount("jdoe", testOU.ActiveDirectoryServicePath, adSettings);
 Console.WriteLine(JsonSerializer.Serialize(searchResult, serializerOptions));
 
-
-#pragma warning disable CA1416
-
-// Connect(adSettings);
-// GetDomainDetails(adSettings);
-
-// var ouCollection = GetOrganizationalUnits(adSettings);
-// Console.WriteLine(JsonSerializer.Serialize(ouCollection, serializerOptions));
-
-// var adPath = "LDAP://ec2-3-68-80-219.eu-central-1.compute.amazonaws.com/OU=TEST_QFR-Users,DC=Cert,DC=Local";
-// var searchResults = SearchUser("gonzalez", adPath, adSettings);
-// Console.WriteLine(JsonSerializer.Serialize(searchResults, serializerOptions));
-
-static void CreateUserAccount()
-{
-    try
-    {
-        // Set the path to the OU (Organizational Unit) where you want to create the user.
-        string ldapPath = "LDAP://OU=yourOU,DC=yourDomain,DC=com";
-        string username = "newUsername";
-        string password = "newPassword";
-
-        // Connect to the Active Directory.
-        using (DirectoryEntry ou = new DirectoryEntry(ldapPath))
-        {
-            // Create a new user.
-            DirectoryEntry newUser = ou.Children.Add($"CN={username}", "user");
-
-            // Set some properties.
-            newUser.Properties["sAMAccountName"].Value = username;
-            newUser.Properties["userAccountControl"].Value = 0x200; // NORMAL_ACCOUNT
-
-            // Set the password.
-            newUser.Invoke("SetPassword", new object[] { password });
-
-            // Save the new user to the directory.
-            newUser.CommitChanges();
-
-            Console.WriteLine("User created successfully.");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error: {ex.Message}");
-    }
-}
-
-static void DeleteUserAccount()
-{
-    // Set up domain context
-    using (PrincipalContext ctx = new PrincipalContext(ContextType.Domain))
-    {
-        // Find the user you want to delete
-        UserPrincipal user = UserPrincipal.FindByIdentity(ctx, "usernameToDelete");
-
-        // If found, delete the user
-        if (user != null)
-        {
-            user.Delete();
-            Console.WriteLine("User deleted successfully.");
-        }
-        else
-        {
-            Console.WriteLine("User not found.");
-        }
-    }
-}
-
-static void ResetUserPassword()
-{
-    try
-    {
-        // The path to the user you want to reset the password for.
-        string userDn = "LDAP://CN=UserName,OU=Users,DC=YourDomain,DC=com";
-        string newPassword = "newPassword123";
-
-        // Connect to the user's DirectoryEntry.
-        using (DirectoryEntry user = new DirectoryEntry(userDn))
-        {
-            // Reset the password.
-            user.Invoke("SetPassword", new object[] { newPassword });
-
-            // If you want to force the user to change password at next logon, uncomment the next line.
-            // user.Properties["pwdLastSet"].Value = 0;
-
-            // Commit the changes.
-            user.CommitChanges();
-
-            Console.WriteLine("Password reset successfully.");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine($"Error: {ex.Message}");
-    }
-}
+var samAccountName = newAccount.UserName;
+var deleteResult = adService.DeleteAccount(samAccountName, adSettings);
+Console.WriteLine(
+    $"Account deletion for {samAccountName} {(deleteResult.IsSuccess ? "Succeeded!" : $"FAILED: {deleteResult.ErrorMessage}")}");
