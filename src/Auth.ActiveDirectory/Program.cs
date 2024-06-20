@@ -1,6 +1,8 @@
 ﻿using System.DirectoryServices;
 using System.Text.Json;
 using Auth.ActiveDirectory;
+using Auth.ActiveDirectory.Models;
+using Auth.ActiveDirectory.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -23,11 +25,13 @@ var serviceProvider = new ServiceCollection()
     })
     .AddSingleton(adSettings)
     .AddTransient<IActiveDirectoryService, ActiveDirectoryService>()
+    .AddTransient<IAccountManagementService, AccountManagementService>()
     .BuildServiceProvider();
 
 var serializerOptions = new JsonSerializerOptions { WriteIndented = true };
 
 var adService = serviceProvider.GetRequiredService<IActiveDirectoryService>();
+var accountService = serviceProvider.GetRequiredService<IAccountManagementService>();
 
 var connectResult = adService.ValidateConnection(adSettings);
 
@@ -46,25 +50,25 @@ var newAccount = new NewUserAccount(
     FirstName: "John",
     LastName: "Doe");
 
-var createResult = adService.CreateAccount(testOU.ActiveDirectoryServicePath, newAccount, adSettings);
+var createResult = accountService.CreateAccount(testOU.ActiveDirectoryServicePath, newAccount, adSettings);
 Console.WriteLine(JsonSerializer.Serialize(createResult, serializerOptions));
 var account = createResult.Value;
 
-// var passwordResult = adService.ResetPassword(account, "aP4@zB1", adSettings);
+// var passwordResult = accountService.ResetPassword(account, "aP4@zB1", adSettings);
 // Console.WriteLine(
 //     $"Password reset for {account.SecurityAccountManagerName} {(passwordResult.IsSuccess ? 
 //         "Succeeded!" : $"FAILED. {passwordResult.ErrorMessage}")}");
 
-var groupResult = adService.AddUserToGroup(account.SecurityAccountManagerName, "TestGroup", adSettings);
+var groupResult = accountService.AddUserToGroup(account.SecurityAccountManagerName, "TestGroup", adSettings);
 if (groupResult.IsFailure)
 {
     Console.WriteLine($"Failed to add user to group. {groupResult.ErrorMessage}");
 }
 
-var searchResult = adService.SearchUserAccount("jdoe", testOU.ActiveDirectoryServicePath, adSettings);
+var searchResult = accountService.SearchAccount("jdoe", testOU.ActiveDirectoryServicePath, adSettings);
 Console.WriteLine(JsonSerializer.Serialize(searchResult, serializerOptions));
 
 var samAccountName = newAccount.UserName;
-var deleteResult = adService.DeleteAccount(samAccountName, adSettings);
+var deleteResult = accountService.DeleteAccount(samAccountName, adSettings);
 Console.WriteLine(
     $"Account deletion for {samAccountName} {(deleteResult.IsSuccess ? "Succeeded!" : $"FAILED: {deleteResult.ErrorMessage}")}");

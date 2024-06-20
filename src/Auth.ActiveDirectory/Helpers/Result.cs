@@ -1,4 +1,4 @@
-namespace Auth.ActiveDirectory;
+namespace Auth.ActiveDirectory.Helpers;
 
 public record Result(bool IsSuccess, string ErrorMessage)
 {

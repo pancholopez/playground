@@ -1,13 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using System.DirectoryServices;
+using Auth.ActiveDirectory.Helpers;
 
-namespace Auth.ActiveDirectory;
-
-public record ActiveDirectorySettings(
-    string ServerName,
-    string UserName,
-    string Password,
-    int TimeOutInMilliSeconds);
+namespace Auth.ActiveDirectory.Models;
 
 public record OrganizationalUnit(
     string Name,
