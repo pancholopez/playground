@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.DirectoryServices;
+using System.Text.RegularExpressions;
 
 namespace Auth.ActiveDirectory.Helpers;
 
@@ -37,5 +38,26 @@ internal static class PropertyCollectionExtensions
         }
 
         return propertyValue?.ToString() ?? string.Empty;
+    }
+}
+
+public static class UniqueHelper
+{
+    public static string GetUniqueUsername(string name, List<string> existingNames)
+    {
+        if (!existingNames.Contains(name))
+        {
+            return name;
+        }
+
+        var regex = new Regex(Regex.Escape(name) + @"(\d+)$");
+        var maxNumber = existingNames
+            .Select(n => regex.Match(n))
+            .Where(m => m.Success)
+            .Select(m => int.Parse(m.Groups[1].Value))
+            .DefaultIfEmpty(0)
+            .Max();
+
+        return $"{name}{maxNumber + 1}";
     }
 }
