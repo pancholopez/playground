@@ -7,21 +7,30 @@ using Auth.ActiveDirectory.Models;
 
 namespace Auth.ActiveDirectory.Services;
 
+/// <inheritdoc />
 [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
 public class ActiveDirectoryService : IActiveDirectoryService
 {
-    public Result ValidateConnection(ActiveDirectorySettings settings)
+    private readonly ActiveDirectorySettings _settings;
+
+    public ActiveDirectoryService(ActiveDirectorySettings settings)
+    {
+        _settings = settings;
+    }
+
+    /// <inheritdoc />
+    public Result ValidateConnection()
     {
         try
         {
             var principalContext = new PrincipalContext(
                 contextType: ContextType.Domain,
-                name: settings.ServerName,
-                userName: settings.UserName,
-                password: settings.Password);
+                name: _settings.ServerName,
+                userName: _settings.UserName,
+                password: _settings.Password);
 
             return principalContext.ConnectedServer is null
-                ? Result.Failure($"Connecting to {settings.ServerName} failed.")
+                ? Result.Failure($"Connecting to {_settings.ServerName} failed.")
                 : Result.Ok();
         }
         catch (Exception exception)
@@ -30,7 +39,8 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
-    public Result<DomainDetails> GetDomainDetails(ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result<DomainDetails> GetDomainDetails()
     {
         var cst = new CancellationTokenSource();
 
@@ -38,14 +48,14 @@ public class ActiveDirectoryService : IActiveDirectoryService
         {
             var context = new DirectoryContext(
                 contextType: DirectoryContextType.DirectoryServer,
-                name: settings.ServerName,
-                username: settings.UserName,
-                password: settings.Password
+                name: _settings.ServerName,
+                username: _settings.UserName,
+                password: _settings.Password
             );
 
             var domainTask = Task.Run(() => Domain.GetDomain(context), cst.Token);
 
-            if (!domainTask.Wait(TimeSpan.FromMilliseconds(settings.TimeOutInMilliSeconds), cst.Token))
+            if (!domainTask.Wait(TimeSpan.FromMilliseconds(_settings.TimeOutInMilliSeconds), cst.Token))
             {
                 cst.Cancel();
                 return Result.Failure<DomainDetails>($"{nameof(Domain.GetDomain)} operation timeout.");
@@ -66,12 +76,13 @@ public class ActiveDirectoryService : IActiveDirectoryService
         }
     }
 
-    public Result<IEnumerable<OrganizationalUnit>> GetOrganizationalUnits(ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result<IEnumerable<OrganizationalUnit>> GetOrganizationalUnits()
     {
-        var ldapPath = $"LDAP://{settings.ServerName}";
+        var ldapPath = $"LDAP://{_settings.ServerName}";
         try
         {
-            var entry = new DirectoryEntry(ldapPath, settings.UserName, settings.Password);
+            var entry = new DirectoryEntry(ldapPath, _settings.UserName, _settings.Password);
 
             var searcher = new DirectorySearcher(entry)
             {

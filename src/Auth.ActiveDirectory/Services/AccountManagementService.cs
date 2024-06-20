@@ -6,15 +6,23 @@ using Auth.ActiveDirectory.Models;
 
 namespace Auth.ActiveDirectory.Services;
 
+/// <inheritdoc />
 [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
 public class AccountManagementService : IAccountManagementService
 {
-    public Result<IEnumerable<UserAccount>> SearchAccount(string name, string adServicePath,
-        ActiveDirectorySettings settings)
+    private readonly ActiveDirectorySettings _settings;
+
+    public AccountManagementService(ActiveDirectorySettings settings)
+    {
+        _settings = settings;
+    }
+
+    /// <inheritdoc />
+    public Result<IEnumerable<UserAccount>> SearchAccount(string name, string adServicePath)
     {
         try
         {
-            var entry = new DirectoryEntry(adServicePath, settings.UserName, settings.Password);
+            var entry = new DirectoryEntry(adServicePath, _settings.UserName, _settings.Password);
 
             // todo: add other filters like sAMAccount
             var searcher = new DirectorySearcher(entry)
@@ -35,12 +43,12 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public Result<UserAccount> CreateAccount(
-        string ldapPath, NewUserAccount account, ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result<UserAccount> CreateAccount(string ldapPath, NewUserAccount account)
     {
         try
         {
-            using var directoryEntry = new DirectoryEntry(ldapPath, settings.UserName, settings.Password);
+            using var directoryEntry = new DirectoryEntry(ldapPath, _settings.UserName, _settings.Password);
             // Create a new user.
             var newUser = directoryEntry.Children.Add($"CN={account.FullName}", "user");
 
@@ -56,7 +64,7 @@ public class AccountManagementService : IAccountManagementService
             newUser.Properties["displayName"].Value = account.FullName;
 
             newUser.Properties["accountExpires"].Add(account.ExpirationDate.HasValue
-                ? account.ExpirationDate.Value.ToFileTime().ToString()
+                ? account.ExpirationDate.Value.ToFileTime().ToString()  //move this logic out
                 : DateTime.Now.AddDays(1).ToFileTime().ToString());
 
             // Enable the account by setting the userAccountControl flag.
@@ -74,12 +82,13 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public Result ResetPassword(UserAccount account, string password, ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result ResetPassword(UserAccount account, string password)
     {
         try
         {
             using var principalContext = new PrincipalContext(ContextType.Domain,
-                settings.ServerName, settings.UserName, settings.Password);
+                _settings.ServerName, _settings.UserName, _settings.Password);
             var user = UserPrincipal.FindByIdentity(principalContext, account.SecurityAccountManagerName);
 
             if (user == null) return Result.Failure("User not found.");
@@ -96,22 +105,21 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public Result AddUserToGroup(string samAccountName, string groupName, ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result AddUserToGroup(string samAccountName, string groupName)
     {
         try
         {
-            using (var context = new PrincipalContext(ContextType.Domain,
-                       settings.ServerName, settings.UserName, settings.Password))
-            {
-                var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
-                if(user is null) return Result.Failure($"User {samAccountName} not found.");
+            using var context = new PrincipalContext(ContextType.Domain,
+                _settings.ServerName, _settings.UserName, _settings.Password);
+            var user = UserPrincipal.FindByIdentity(context, IdentityType.SamAccountName, samAccountName);
+            if(user is null) return Result.Failure($"User {samAccountName} not found.");
                 
-                var group = GroupPrincipal.FindByIdentity(context, groupName);
-                if (group is null) return Result.Failure($"Group {groupName} not found.");
+            var group = GroupPrincipal.FindByIdentity(context, groupName);
+            if (group is null) return Result.Failure($"Group {groupName} not found.");
 
-                group.Members.Add(user);
-                group.Save();
-            }
+            group.Members.Add(user);
+            group.Save();
 
             return Result.Ok();
         }
@@ -121,21 +129,20 @@ public class AccountManagementService : IAccountManagementService
         }
     }
 
-    public Result DeleteAccount(string samAccountName, ActiveDirectorySettings settings)
+    /// <inheritdoc />
+    public Result DeleteAccount(string samAccountName)
     {
         try
         {
-            using (var principalContext = new PrincipalContext(ContextType.Domain, settings.ServerName,
-                       settings.UserName, settings.Password))
-            {
-                var user = UserPrincipal.FindByIdentity(principalContext, IdentityType.SamAccountName, samAccountName);
+            using var principalContext = new PrincipalContext(ContextType.Domain, 
+                _settings.ServerName, _settings.UserName, _settings.Password);
+            var user = UserPrincipal.FindByIdentity(principalContext, IdentityType.SamAccountName, samAccountName);
 
-                if (user is null)
-                    return Result.Failure($"User {samAccountName} not found.");
+            if (user is null)
+                return Result.Failure($"User {samAccountName} not found.");
 
-                user.Delete();
-                return Result.Ok();
-            }
+            user.Delete();
+            return Result.Ok();
         }
         catch (Exception exception)
         {
