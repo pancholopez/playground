@@ -60,4 +60,12 @@ public static class UniqueHelper
 
         return $"{name}{maxNumber + 1}";
     }
+    
+    public static string ExtractDcValues(string ldapPath)
+    {
+        var match = Regex.Match(ldapPath, @"(DC=[^,]+,)*(DC=[^,]+)$", RegexOptions.IgnoreCase);
+        if (!match.Success) return string.Empty;
+        var dcValues = match.Value.Split(new[] { ',', '=' }, StringSplitOptions.RemoveEmptyEntries);
+        return string.Join(".", dcValues.Where((value, index) => index % 2 != 0));
+    }
 }
